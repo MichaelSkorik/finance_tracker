@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <!-- Внешний круг -->
+  <circle cx="128" cy="128" r="120" fill="#d32f2f" stroke="#8b0000" stroke-width="12"/>
+
+  <!-- Сектора (черно-белые) -->
+  <circle cx="128" cy="128" r="90"
+    fill="none"
+    stroke="#ffffff"
+    stroke-width="20"
+    stroke-dasharray="20 20"
+    stroke-linecap="butt"/>
+
+  <!-- Внутренний круг -->
+  <circle cx="128" cy="128" r="50" fill="#333"/>
+
+  <!-- Центральная точка -->
+  <circle cx="128" cy="128" r="16" fill="#ffeb3b" stroke="#bfa400" stroke-width="4"/>
+
+  <!-- Указатель сверху -->
+  <path d="M128 8 L118 35 L138 35 Z" fill="#ffeb3b" stroke="#bfa400" stroke-width="4"/>
+</svg>
