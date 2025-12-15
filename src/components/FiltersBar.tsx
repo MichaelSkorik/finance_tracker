@@ -1,14 +1,14 @@
-//import React from "react";
+import React from "react";
 
 export type TxTypeFilter = "all" | "income" | "expense";
 export type SortBy = "date_desc" | "date_asc" | "amount_desc" | "amount_asc";
 
 export interface FiltersState {
   type: TxTypeFilter;
-  from: string;   
-  to: string;     
-  query: string;  
+  category: string;
   sort: SortBy;
+  dateFrom: string; // "YYYY-MM-DD" или ""
+  dateTo: string;   // "YYYY-MM-DD" или ""
 }
 
 interface FiltersBarProps {
@@ -16,79 +16,131 @@ interface FiltersBarProps {
   onChange: (next: FiltersState) => void;
 }
 
-const TODAY = new Date().toISOString().split("T")[0];
+const DEFAULT_FILTERS: FiltersState = {
+  type: "all",
+  category: "",
+  sort: "date_desc",
+  dateFrom: "",
+  dateTo: "",
+};
 
 export default function FiltersBar({ value, onChange }: FiltersBarProps) {
+  // Универсальный setter для изменения одного поля в объекте фильтров
   function set<K extends keyof FiltersState>(key: K, v: FiltersState[K]) {
     onChange({ ...value, [key]: v });
   }
 
+  // ✅ Сброс фильтров в значения по умолчанию
+  function reset() {
+    onChange(DEFAULT_FILTERS);
+  }
+
+  // ✅ Если пользователь выбрал dateFrom позже dateTo — автоматически подтягиваем dateTo к dateFrom
+  function handleDateFromChange(nextFrom: string) {
+    let next: FiltersState = { ...value, dateFrom: nextFrom };
+
+    // Если обе даты заданы и from > to — исправляем to
+    if (nextFrom && next.dateTo && nextFrom > next.dateTo) {
+      next = { ...next, dateTo: nextFrom };
+    }
+
+    onChange(next);
+  }
+
+  // ✅ Если пользователь выбрал dateTo раньше dateFrom — автоматически подтягиваем dateFrom к dateTo
+  function handleDateToChange(nextTo: string) {
+    let next: FiltersState = { ...value, dateTo: nextTo };
+
+    if (nextTo && next.dateFrom && next.dateFrom > nextTo) {
+      next = { ...next, dateFrom: nextTo };
+    }
+
+    onChange(next);
+  }
+
   return (
-    <div className="rounded-xl bg-slate-800 p-4 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-      <div className="flex gap-2">
-        {[
-          { label: "Все", v: "all" as const },
-          { label: "Доход", v: "income" as const },
-          { label: "Расход", v: "expense" as const },
-        ].map((b) => (
-          <button
-            key={b.v}
-            onClick={() => set("type", b.v)}
-            className={
-              "px-3 py-2 rounded-lg text-sm transition " +
-              (value.type === b.v
-                ? "bg-slate-700 text-white"
-                : "bg-slate-900/40 text-slate-300 hover:bg-slate-700/60")
-            }
-          >
-            {b.label}
-          </button>
-        ))}
-      </div>
-
-      <div className="flex gap-2">
-        <div className="flex flex-col">
-          <label className="text-xs text-slate-400 mb-1">От</label>
-          <input
-            type="date"
-            value={value.from}
-            max={TODAY}
-            onChange={(e) => set("from", e.target.value)}
-            className="px-3 py-2 rounded-lg bg-slate-700 text-white"
-          />
+    <div className="rounded-xl bg-slate-800 p-4 flex flex-col gap-3">
+      {/* 1-я строка: тип + кнопка сброса */}
+      <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+        <div className="flex gap-2">
+          {[
+            { label: "Все", v: "all" as const },
+            { label: "Доход", v: "income" as const },
+            { label: "Расход", v: "expense" as const },
+          ].map((b) => (
+            <button
+              key={b.v}
+              onClick={() => set("type", b.v)}
+              className={
+                "px-3 py-2 rounded-lg text-sm transition " +
+                (value.type === b.v
+                  ? "bg-slate-700 text-white"
+                  : "bg-slate-900/40 text-slate-300 hover:bg-slate-700/60")
+              }
+            >
+              {b.label}
+            </button>
+          ))}
         </div>
 
-        <div className="flex flex-col">
-          <label className="text-xs text-slate-400 mb-1">До</label>
-          <input
-            type="date"
-            value={value.to}
-            max={TODAY}
-            onChange={(e) => set("to", e.target.value)}
-            className="px-3 py-2 rounded-lg bg-slate-700 text-white"
-          />
-        </div>
+        <button
+          type="button"
+          onClick={reset}
+          className="px-3 py-2 rounded-lg text-sm bg-slate-700/60 hover:bg-slate-700 text-slate-100 transition w-full md:w-auto"
+          title="Сбросить все фильтры"
+        >
+          Сбросить фильтры
+        </button>
       </div>
 
-      <div className="flex gap-2 md:min-w-[420px]">
+      {/* 2-я строка: даты + поиск + сорт */}
+      <div className="flex flex-col gap-2 md:flex-row md:items-center">
+        {/* Дата от */}
         <input
-          type="text"
-          placeholder="Поиск: категория или описание..."
-          value={value.query}
-          onChange={(e) => set("query", e.target.value)}
-          className="flex-1 px-3 py-2 rounded-lg bg-slate-700 text-white"
+          type="date"
+          value={value.dateFrom}
+          onChange={(e) => handleDateFromChange(e.target.value)}
+          // ✅ не даём выбрать "от" позже "до"
+          max={value.dateTo || undefined}
+          className="w-full md:w-[180px] px-3 py-2 rounded-lg bg-slate-700 text-white"
         />
 
-        <select
-          value={value.sort}
-          onChange={(e) => set("sort", e.target.value as FiltersState["sort"])}
-          className="px-3 py-2 rounded-lg bg-slate-700 text-white"
-        >
-          <option value="date_desc">Дата: новые</option>
-          <option value="date_asc">Дата: старые</option>
-          <option value="amount_desc">Сумма: больше</option>
-          <option value="amount_asc">Сумма: меньше</option>
-        </select>
+        {/* Дата до */}
+        <input
+          type="date"
+          value={value.dateTo}
+          onChange={(e) => handleDateToChange(e.target.value)}
+          // ✅ не даём выбрать "до" раньше "от"
+          min={value.dateFrom || undefined}
+          className="w-full md:w-[180px] px-3 py-2 rounded-lg bg-slate-700 text-white"
+        />
+
+        {/* Категория */}
+        <input
+          type="text"
+          placeholder="Категория (поиск)..."
+          value={value.category}
+          onChange={(e) => set("category", e.target.value)}
+          className="w-full md:flex-1 px-3 py-2 rounded-lg bg-slate-700 text-white"
+        />
+
+        {/* Сортировка */}
+        <div className="relative w-full md:w-auto">
+          <select
+            value={value.sort}
+            onChange={(e) => set("sort", e.target.value as SortBy)}
+            className="appearance-none w-full px-3 py-2 pr-8 rounded-lg bg-slate-700 text-white cursor-pointer"
+          >
+            <option value="date_desc">Дата: новые</option>
+            <option value="date_asc">Дата: старые</option>
+            <option value="amount_desc">Сумма: больше</option>
+            <option value="amount_asc">Сумма: меньше</option>
+          </select>
+
+          <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-slate-300 text-xs">
+            ▼
+          </span>
+        </div>
       </div>
     </div>
   );

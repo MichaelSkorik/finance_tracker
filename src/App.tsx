@@ -3,77 +3,102 @@ import React from "react";
 import Layout from "./components/Layout";
 import SummaryCards from "./components/SummaryCards";
 import TransactionsTable from "./components/TransactionsTable";
+import FiltersBar, { type FiltersState } from "./components/FiltersBar";
 import Modal from "./components/Modal";
 import AddTransactionForm from "./components/AddTransactionForm";
-
-import FiltersBar, { type FiltersState } from "./components/FiltersBar";
-
+import ConfirmDialog from "./components/ConfirmDialog";
 
 import { mockTransactions, type Transaction } from "./data";
 
 const STORAGE_KEY = "finance-tracker-transactions";
 
+function calcTotals(list: Transaction[]) {
+  const income = list
+    .filter((x) => x.type === "income")
+    .reduce((sum, x) => sum + x.amount, 0);
+
+  const expense = list
+    .filter((x) => x.type === "expense")
+    .reduce((sum, x) => sum + x.amount, 0);
+
+  return { income, expense, balance: income - expense };
+}
+
 export default function App() {
   const [transactions, setTransactions] = React.useState<Transaction[]>(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
-
-    if (saved) {
-      try {
-        return JSON.parse(saved) as Transaction[];
-      } catch (err) {
-        console.warn("Ошибка чтения localStorage, использую mockTransactions", err);
-      }
-    }
-
-    return mockTransactions;
+    return saved ? (JSON.parse(saved) as Transaction[]) : mockTransactions;
   });
 
   const [filters, setFilters] = React.useState<FiltersState>({
     type: "all",
-    from: "",
-    to: "",
-    query: "",
+    category: "",
     sort: "date_desc",
+    dateFrom: "",
+    dateTo: "",
   });
 
-
   const [isModalOpen, setIsModalOpen] = React.useState(false);
+
+  // ✅ состояние для подтверждения удаления
+  const [deleteId, setDeleteId] = React.useState<number | null>(null);
 
   React.useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(transactions));
   }, [transactions]);
 
-  function addTransaction(t: Transaction) {
+  const currentBalance = React.useMemo(() => {
+    return calcTotals(transactions).balance;
+  }, [transactions]);
+
+  function addTransaction(t: Transaction): { ok: boolean; error?: string } {
+    if (t.type === "expense" && t.amount > currentBalance) {
+      return {
+        ok: false,
+        error: `Недостаточно средств. Доступно: ${currentBalance.toLocaleString(
+          "ru-RU"
+        )} ₼`,
+      };
+    }
+
     setTransactions((prev) => [t, ...prev]);
     setIsModalOpen(false);
+    return { ok: true };
   }
 
-  function deleteTransaction(id: number) {
-    setTransactions((prev) => prev.filter((t) => t.id !== id));
+  // ❗️теперь это “запрос на удаление” — откроет окно подтверждения
+  function requestDelete(id: number) {
+    setDeleteId(id);
+  }
+
+  // ✅ подтверждённое удаление
+  function confirmDelete() {
+    if (deleteId === null) return;
+    setTransactions((prev) => prev.filter((t) => t.id !== deleteId));
+    setDeleteId(null);
+  }
+
+  function cancelDelete() {
+    setDeleteId(null);
   }
 
   const visibleTransactions = React.useMemo(() => {
-    let list = [...transactions];
+    let list = transactions.filter((t) => {
+      if (filters.type !== "all" && t.type !== filters.type) return false;
 
-    if (filters.type !== "all") {
-      list = list.filter((t) => t.type === filters.type);
-    }
+      if (
+        filters.category &&
+        !t.category.toLowerCase().includes(filters.category.toLowerCase())
+      )
+        return false;
 
-    if (filters.from) {
-      list = list.filter((t) => t.date >= filters.from);
-    }
-    if (filters.to) {
-      list = list.filter((t) => t.date <= filters.to);
-    }
+      if (filters.dateFrom && t.date < filters.dateFrom) return false;
+      if (filters.dateTo && t.date > filters.dateTo) return false;
 
-    const q = filters.query.trim().toLowerCase();
-    if (q) {
-      list = list.filter((t) => {
-        const cat = t.category.toLowerCase();
-        const desc = (t.description || "").toLowerCase();
-        return cat.includes(q) || desc.includes(q);
-      });
-    }
+      return true;
+    });
+
+    list = [...list];
 
     switch (filters.sort) {
       case "date_desc":
@@ -93,7 +118,6 @@ export default function App() {
     return list;
   }, [transactions, filters]);
 
-
   return (
     <Layout>
       <header className="flex items-center justify-between mb-6">
@@ -110,15 +134,33 @@ export default function App() {
       </header>
 
       <main className="space-y-6">
-        <SummaryCards transactions={transactions} />
-        <FiltersBar value={filters} onChange={setFilters} />
-        <TransactionsTable transactions={transactions} onDelete={deleteTransaction} />
+        {/* у тебя карточки можно считать по transactions или visibleTransactions — как хочешь */}
+        <SummaryCards transactions={visibleTransactions} />
 
+        <FiltersBar value={filters} onChange={setFilters} />
+
+        <TransactionsTable
+          transactions={visibleTransactions}
+          onDelete={requestDelete}
+        />
       </main>
 
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}>
-        <AddTransactionForm onSubmit={addTransaction} />
+        <AddTransactionForm
+          onSubmit={addTransaction}
+          currentBalance={currentBalance}
+        />
       </Modal>
+
+      <ConfirmDialog
+        isOpen={deleteId !== null}
+        title="Удалить транзакцию?"
+        message="Это действие нельзя отменить. Удалить выбранную транзакцию?"
+        confirmText="Удалить"
+        cancelText="Отмена"
+        onConfirm={confirmDelete}
+        onCancel={cancelDelete}
+      />
     </Layout>
   );
 }

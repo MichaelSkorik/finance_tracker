@@ -25,7 +25,6 @@ export default function SummaryCards({ transactions }: SummaryCardsProps) {
 
   return (
     <section className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-      {/* Карточка Баланс */}
       <div className="rounded-xl bg-slate-800/80 px-4 py-3">
         <p className="text-xs text-slate-400">Баланс</p>
         <p className="mt-2 text-2xl font-semibold">
@@ -33,7 +32,6 @@ export default function SummaryCards({ transactions }: SummaryCardsProps) {
         </p>
       </div>
 
-      {/* Карточка Доходы */}
       <div className="rounded-xl bg-slate-800/80 px-4 py-3">
         <p className="text-xs text-slate-400">Доходы</p>
         <p className="mt-2 text-2xl font-semibold text-emerald-400">
@@ -41,7 +39,6 @@ export default function SummaryCards({ transactions }: SummaryCardsProps) {
         </p>
       </div>
 
-      {/* Карточка Расходы */}
       <div className="rounded-xl bg-slate-800/80 px-4 py-3">
         <p className="text-xs text-slate-400">Расходы</p>
         <p className="mt-2 text-2xl font-semibold text-rose-400">

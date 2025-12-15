@@ -34,25 +34,20 @@ export default function TransactionsTable({
               key={t.id}
               className="border-b border-slate-700 last:border-none hover:bg-slate-700/40 transition"
             >
-              {/* Дата */}
               <td className="px-4 py-3 whitespace-nowrap text-center">
                 {formatDate(t.date)}
               </td>
 
-              {/* Тип */}
               <td className="px-4 py-3 text-center">
                 {t.type === "income" ? "Доход" : "Расход"}
               </td>
 
-              {/* Категория */}
               <td className="px-4 py-3 text-center">{t.category}</td>
 
-              {/* Описание */}
               <td className="px-4 py-3 text-slate-400 text-center">
                 {t.description || "—"}
               </td>
 
-              {/* Сумма */}
               <td className="px-4 py-3 text-center font-medium">
                 <span
                   className={
@@ -66,7 +61,6 @@ export default function TransactionsTable({
                 </span>
               </td>
 
-              {/* Действие */}
               <td className="px-4 py-3 text-center">
                 <button
                   onClick={() => onDelete(t.id)}

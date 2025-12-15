@@ -15,3 +15,11 @@ export const mockTransactions: Transaction[] = [
   { id: 3, type: "expense", amount: 50, date: "2025-11-12", category: "Транспорт", description: "Такси" },
   { id: 4, type: "income", amount: 300, date: "2025-11-13", category: "Подработка", description: "Уборка" },
 ];
+
+export type SortField = "date" | "amount";
+export type SortOrder = "asc" | "desc";
+
+export interface SortOptions {
+  field: SortField;
+  order: SortOrder;
+}
