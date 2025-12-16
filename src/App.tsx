@@ -40,7 +40,6 @@ export default function App() {
 
   const [isModalOpen, setIsModalOpen] = React.useState(false);
 
-  // ✅ состояние для подтверждения удаления
   const [deleteId, setDeleteId] = React.useState<number | null>(null);
 
   React.useEffect(() => {
@@ -66,12 +65,10 @@ export default function App() {
     return { ok: true };
   }
 
-  // ❗️теперь это “запрос на удаление” — откроет окно подтверждения
   function requestDelete(id: number) {
     setDeleteId(id);
   }
 
-  // ✅ подтверждённое удаление
   function confirmDelete() {
     if (deleteId === null) return;
     setTransactions((prev) => prev.filter((t) => t.id !== deleteId));
@@ -134,7 +131,6 @@ export default function App() {
       </header>
 
       <main className="space-y-6">
-        {/* у тебя карточки можно считать по transactions или visibleTransactions — как хочешь */}
         <SummaryCards transactions={visibleTransactions} />
 
         <FiltersBar value={filters} onChange={setFilters} />

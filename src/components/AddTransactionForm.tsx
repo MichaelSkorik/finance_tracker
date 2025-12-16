@@ -12,6 +12,7 @@ type FieldErrors = {
   amount?: string;
   date?: string;
   category?: string;
+  common?: string;
 };
 
 export default function AddTransactionForm({
@@ -24,71 +25,50 @@ export default function AddTransactionForm({
   const [description, setDescription] = React.useState("");
   const [date, setDate] = React.useState(TODAY);
 
-  // Общая ошибка (например, из App.tsx)
-  const [error, setError] = React.useState<string>("");
+  const [errors, setErrors] = React.useState<FieldErrors>({});
 
-  // Ошибки по конкретным полям
-  const [fieldErrors, setFieldErrors] = React.useState<FieldErrors>({});
-
-  // Валидация для disable кнопки
   const numericAmount = Number(amount);
 
   const isValid =
-    !!category &&
+    category.trim().length > 0 &&
     !!date &&
     !Number.isNaN(numericAmount) &&
     numericAmount > 0 &&
     date <= TODAY &&
     (type !== "expense" || numericAmount <= currentBalance);
 
-  function clearAllErrors() {
-    setError("");
-    setFieldErrors({});
+  function validate(): FieldErrors {
+    const next: FieldErrors = {};
+
+    if (!category.trim()) next.category = "Введите категорию";
+
+    if (!date) next.date = "Выберите дату";
+    else if (date > TODAY) next.date = "Дата не может быть позже сегодняшней";
+
+    if (amount.trim().length === 0) next.amount = "Введите сумму";
+    else if (Number.isNaN(numericAmount)) next.amount = "Сумма должна быть числом";
+    else if (numericAmount <= 0) next.amount = "Сумма должна быть больше 0";
+    else if (type === "expense" && numericAmount > currentBalance)
+      next.amount = `Недостаточно средств. Доступно: ${currentBalance.toLocaleString("ru-RU")} ₼`;
+
+    return next;
   }
 
-  // Удобный helper: добавляет красную рамку, если у поля есть ошибка
   function inputClass(hasError: boolean) {
     return (
-      "w-full p-2 rounded text-white bg-slate-700 outline-none transition " +
+      "w-full p-2 rounded bg-slate-700 text-white outline-none transition border " +
       (hasError
-        ? "border border-rose-500/70 ring-2 ring-rose-500/25"
-        : "border border-transparent focus:border-slate-500/60")
+        ? "border-rose-500/70 ring-2 ring-rose-500/25"
+        : "border-transparent focus:border-slate-500/60")
     );
   }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setError("");
-    setFieldErrors({});
 
-    const nextErrors: FieldErrors = {};
-
-    // Категория
-    if (!category.trim()) {
-      nextErrors.category = "Введите категорию.";
-    }
-
-    // Дата
-    if (!date) {
-      nextErrors.date = "Выберите дату.";
-    } else if (date > TODAY) {
-      nextErrors.date = "Дата не может быть позже сегодняшнего дня.";
-    }
-
-    // Сумма
-    if (Number.isNaN(numericAmount)) {
-      nextErrors.amount = "Введите число.";
-    } else if (numericAmount <= 0) {
-      nextErrors.amount = "Сумма должна быть больше нуля.";
-    } else if (type === "expense" && numericAmount > currentBalance) {
-      nextErrors.amount = `Недостаточно средств. Доступно: ${currentBalance.toLocaleString(
-        "ru-RU"
-      )} ₼`;
-    }
-
-    // Если есть хотя бы одна ошибка — показываем и не отправляем
+    const nextErrors = validate();
     if (Object.keys(nextErrors).length > 0) {
-      setFieldErrors(nextErrors);
+      setErrors(nextErrors);
       return;
     }
 
@@ -104,39 +84,33 @@ export default function AddTransactionForm({
     const result = onSubmit(newTransaction);
 
     if (!result.ok) {
-      setError(result.error ?? "Не удалось добавить транзакцию.");
+      setErrors({ common: result.error || "Ошибка" });
       return;
     }
 
-    // Очистка формы
     setAmount("");
     setCategory("");
     setDescription("");
     setDate(TODAY);
     setType("income");
-    clearAllErrors();
+    setErrors({});
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <h2 className="text-xl font-semibold mb-2">Новая транзакция</h2>
+    <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+      <h2 className="text-xl font-semibold">Новая транзакция</h2>
 
-      {/* Баланс */}
       <div className="text-sm text-slate-300">
         Доступно:{" "}
-        <span className="font-semibold">
-          {currentBalance.toLocaleString("ru-RU")} ₼
-        </span>
+        <span className="font-semibold">{currentBalance.toLocaleString("ru-RU")} ₼</span>
       </div>
 
-      {/* Общая ошибка */}
-      {error && (
+      {errors.common && (
         <div className="rounded-lg bg-rose-500/15 border border-rose-500/40 px-3 py-2 text-rose-200 text-sm">
-          {error}
+          {errors.common}
         </div>
       )}
 
-      {/* Тип */}
       <div className="flex gap-4">
         <label className="flex items-center gap-2">
           <input
@@ -144,7 +118,7 @@ export default function AddTransactionForm({
             checked={type === "income"}
             onChange={() => {
               setType("income");
-              clearAllErrors();
+              setErrors({});
             }}
           />
           Доход
@@ -156,92 +130,77 @@ export default function AddTransactionForm({
             checked={type === "expense"}
             onChange={() => {
               setType("expense");
-              clearAllErrors();
+              setErrors({});
             }}
           />
           Расход
         </label>
       </div>
 
-      {/* Сумма */}
       <div className="space-y-1">
         <input
           type="number"
-          min="0.01"
           step="0.01"
           placeholder="Сумма"
           value={amount}
+          onInvalid={(e) => e.preventDefault()}
           onChange={(e) => {
             setAmount(e.target.value);
-            setError("");
-            setFieldErrors((p) => ({ ...p, amount: undefined }));
+            setErrors((p) => ({ ...p, amount: undefined, common: undefined }));
           }}
-          className={inputClass(!!fieldErrors.amount)}
+          className={inputClass(!!errors.amount)}
         />
-        {fieldErrors.amount && (
-          <p className="text-xs text-rose-300">{fieldErrors.amount}</p>
-        )}
+        {errors.amount && <p className="text-xs text-rose-300">{errors.amount}</p>}
       </div>
 
-      {/* Дата */}
       <div className="space-y-1">
         <input
           type="date"
           value={date}
           max={TODAY}
+          onInvalid={(e) => e.preventDefault()}
           onChange={(e) => {
             setDate(e.target.value);
-            setError("");
-            setFieldErrors((p) => ({ ...p, date: undefined }));
+            setErrors((p) => ({ ...p, date: undefined, common: undefined }));
           }}
-          className={inputClass(!!fieldErrors.date)}
+          className={inputClass(!!errors.date)}
         />
-        {fieldErrors.date && (
-          <p className="text-xs text-rose-300">{fieldErrors.date}</p>
-        )}
+        {errors.date && <p className="text-xs text-rose-300">{errors.date}</p>}
       </div>
 
-      {/* Категория */}
       <div className="space-y-1">
         <input
           type="text"
           placeholder="Категория"
           value={category}
+          onInvalid={(e) => e.preventDefault()}
           onChange={(e) => {
             setCategory(e.target.value);
-            setError("");
-            setFieldErrors((p) => ({ ...p, category: undefined }));
+            setErrors((p) => ({ ...p, category: undefined, common: undefined }));
           }}
-          className={inputClass(!!fieldErrors.category)}
+          className={inputClass(!!errors.category)}
         />
-        {fieldErrors.category && (
-          <p className="text-xs text-rose-300">{fieldErrors.category}</p>
-        )}
+        {errors.category && <p className="text-xs text-rose-300">{errors.category}</p>}
       </div>
 
-      {/* Описание */}
       <textarea
         placeholder="Описание (необязательно)"
         value={description}
         onChange={(e) => {
           setDescription(e.target.value);
-          setError("");
+          setErrors((p) => ({ ...p, common: undefined }));
         }}
-        className="w-full p-2 rounded bg-slate-700 text-white border border-transparent focus:border-slate-500/60 outline-none transition"
+        className="w-full p-2 rounded bg-slate-700 text-white outline-none transition border border-transparent focus:border-slate-500/60"
       />
 
-      {/* Кнопка */}
       <button
         type="submit"
-        disabled={!isValid}
-        className={`
-          w-full py-2 rounded-lg font-medium transition
-          ${
-            isValid
-              ? "bg-emerald-600 hover:bg-emerald-500 text-white"
-              : "bg-slate-600 text-slate-300 cursor-not-allowed"
-          }
-        `}
+        aria-disabled={!isValid}
+        className={`w-full py-2 rounded-lg font-medium transition ${
+          isValid
+            ? "bg-emerald-600 hover:bg-emerald-500 text-white"
+            : "bg-slate-600 text-slate-300 cursor-not-allowed"
+        }`}
       >
         Добавить
       </button>

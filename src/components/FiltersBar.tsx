@@ -1,4 +1,4 @@
-import React from "react";
+//import React from "react";
 
 export type TxTypeFilter = "all" | "income" | "expense";
 export type SortBy = "date_desc" | "date_asc" | "amount_desc" | "amount_asc";
@@ -7,8 +7,8 @@ export interface FiltersState {
   type: TxTypeFilter;
   category: string;
   sort: SortBy;
-  dateFrom: string; // "YYYY-MM-DD" или ""
-  dateTo: string;   // "YYYY-MM-DD" или ""
+  dateFrom: string;
+  dateTo: string;  
 }
 
 interface FiltersBarProps {
@@ -25,21 +25,17 @@ const DEFAULT_FILTERS: FiltersState = {
 };
 
 export default function FiltersBar({ value, onChange }: FiltersBarProps) {
-  // Универсальный setter для изменения одного поля в объекте фильтров
   function set<K extends keyof FiltersState>(key: K, v: FiltersState[K]) {
     onChange({ ...value, [key]: v });
   }
 
-  // ✅ Сброс фильтров в значения по умолчанию
   function reset() {
     onChange(DEFAULT_FILTERS);
   }
 
-  // ✅ Если пользователь выбрал dateFrom позже dateTo — автоматически подтягиваем dateTo к dateFrom
   function handleDateFromChange(nextFrom: string) {
     let next: FiltersState = { ...value, dateFrom: nextFrom };
 
-    // Если обе даты заданы и from > to — исправляем to
     if (nextFrom && next.dateTo && nextFrom > next.dateTo) {
       next = { ...next, dateTo: nextFrom };
     }
@@ -47,7 +43,6 @@ export default function FiltersBar({ value, onChange }: FiltersBarProps) {
     onChange(next);
   }
 
-  // ✅ Если пользователь выбрал dateTo раньше dateFrom — автоматически подтягиваем dateFrom к dateTo
   function handleDateToChange(nextTo: string) {
     let next: FiltersState = { ...value, dateTo: nextTo };
 
@@ -60,7 +55,6 @@ export default function FiltersBar({ value, onChange }: FiltersBarProps) {
 
   return (
     <div className="rounded-xl bg-slate-800 p-4 flex flex-col gap-3">
-      {/* 1-я строка: тип + кнопка сброса */}
       <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <div className="flex gap-2">
           {[
@@ -93,29 +87,23 @@ export default function FiltersBar({ value, onChange }: FiltersBarProps) {
         </button>
       </div>
 
-      {/* 2-я строка: даты + поиск + сорт */}
       <div className="flex flex-col gap-2 md:flex-row md:items-center">
-        {/* Дата от */}
         <input
           type="date"
           value={value.dateFrom}
           onChange={(e) => handleDateFromChange(e.target.value)}
-          // ✅ не даём выбрать "от" позже "до"
           max={value.dateTo || undefined}
           className="w-full md:w-[180px] px-3 py-2 rounded-lg bg-slate-700 text-white"
         />
 
-        {/* Дата до */}
         <input
           type="date"
           value={value.dateTo}
           onChange={(e) => handleDateToChange(e.target.value)}
-          // ✅ не даём выбрать "до" раньше "от"
           min={value.dateFrom || undefined}
           className="w-full md:w-[180px] px-3 py-2 rounded-lg bg-slate-700 text-white"
         />
 
-        {/* Категория */}
         <input
           type="text"
           placeholder="Категория (поиск)..."
@@ -124,7 +112,6 @@ export default function FiltersBar({ value, onChange }: FiltersBarProps) {
           className="w-full md:flex-1 px-3 py-2 rounded-lg bg-slate-700 text-white"
         />
 
-        {/* Сортировка */}
         <div className="relative w-full md:w-auto">
           <select
             value={value.sort}
