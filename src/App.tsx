@@ -1,162 +1,113 @@
 import React from "react";
+import { BrowserRouter, Routes, Route, Navigate, Link } from "react-router-dom";
 
 import Layout from "./components/Layout";
-import SummaryCards from "./components/SummaryCards";
-import TransactionsTable from "./components/TransactionsTable";
-import FiltersBar, { type FiltersState } from "./components/FiltersBar";
-import Modal from "./components/Modal";
-import AddTransactionForm from "./components/AddTransactionForm";
-import ConfirmDialog from "./components/ConfirmDialog";
+import HomePage from "./pages/HomePage";
+import AnalyticsPage from "./pages/AnalyticsPage";
+import LoginPage from "./pages/LoginPage";
+import ProfilePage from "./pages/ProfilePage";
+import SettingsPage from "./pages/SettingsPage";
+import AdminUsersPage from "./pages/AdminUsersPage";
 
-import { mockTransactions, type Transaction } from "./data";
+import { getCurrentUser, isAdmin } from "./utils/auth";
+import { loadTransactions, saveTransactions } from "./utils/storage";
+import { applyTheme, loadSettings, t } from "./utils/settings";
+import type { Transaction } from "./data";
 
-const STORAGE_KEY = "finance-tracker-transactions";
-
-function calcTotals(list: Transaction[]) {
-  const income = list
-    .filter((x) => x.type === "income")
-    .reduce((sum, x) => sum + x.amount, 0);
-
-  const expense = list
-    .filter((x) => x.type === "expense")
-    .reduce((sum, x) => sum + x.amount, 0);
-
-  return { income, expense, balance: income - expense };
+function Protected({ children }: { children: React.ReactNode }) {
+  return getCurrentUser() ? <>{children}</> : <Navigate to="/login" replace />;
 }
 
 export default function App() {
-  const [transactions, setTransactions] = React.useState<Transaction[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    return saved ? (JSON.parse(saved) as Transaction[]) : mockTransactions;
-  });
+  const user = getCurrentUser();
 
-  const [filters, setFilters] = React.useState<FiltersState>({
-    type: "all",
-    category: "",
-    sort: "date_desc",
-    dateFrom: "",
-    dateTo: "",
-  });
-
-  const [isModalOpen, setIsModalOpen] = React.useState(false);
-
-  const [deleteId, setDeleteId] = React.useState<number | null>(null);
+  const [settings, setSettings] = React.useState(() => loadSettings(user?.id || ""));
 
   React.useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(transactions));
+    applyTheme(settings.theme);
+  }, [settings.theme]);
+
+  const [transactions, setTransactions] = React.useState<Transaction[]>(() => {
+    if (!user) return [];
+    return loadTransactions(user.id);
+  });
+
+  React.useEffect(() => {
+    const u = getCurrentUser();
+    if (!u) return;
+    saveTransactions(u.id, transactions);
   }, [transactions]);
 
-  const currentBalance = React.useMemo(() => {
-    return calcTotals(transactions).balance;
-  }, [transactions]);
+  React.useEffect(() => {
+    const u = getCurrentUser();
+    if (!u) return;
+    setTransactions(loadTransactions(u.id));
+  }, [user?.id]);
 
-  function addTransaction(t: Transaction): { ok: boolean; error?: string } {
-    if (t.type === "expense" && t.amount > currentBalance) {
-      return {
-        ok: false,
-        error: `Недостаточно средств. Доступно: ${currentBalance.toLocaleString(
-          "ru-RU"
-        )} ₼`,
-      };
-    }
-
-    setTransactions((prev) => [t, ...prev]);
-    setIsModalOpen(false);
-    return { ok: true };
-  }
-
-  function requestDelete(id: number) {
-    setDeleteId(id);
-  }
-
-  function confirmDelete() {
-    if (deleteId === null) return;
-    setTransactions((prev) => prev.filter((t) => t.id !== deleteId));
-    setDeleteId(null);
-  }
-
-  function cancelDelete() {
-    setDeleteId(null);
-  }
-
-  const visibleTransactions = React.useMemo(() => {
-    let list = transactions.filter((t) => {
-      if (filters.type !== "all" && t.type !== filters.type) return false;
-
-      if (
-        filters.category &&
-        !t.category.toLowerCase().includes(filters.category.toLowerCase())
-      )
-        return false;
-
-      if (filters.dateFrom && t.date < filters.dateFrom) return false;
-      if (filters.dateTo && t.date > filters.dateTo) return false;
-
-      return true;
-    });
-
-    list = [...list];
-
-    switch (filters.sort) {
-      case "date_desc":
-        list.sort((a, b) => b.date.localeCompare(a.date));
-        break;
-      case "date_asc":
-        list.sort((a, b) => a.date.localeCompare(b.date));
-        break;
-      case "amount_desc":
-        list.sort((a, b) => b.amount - a.amount);
-        break;
-      case "amount_asc":
-        list.sort((a, b) => a.amount - b.amount);
-        break;
-    }
-
-    return list;
-  }, [transactions, filters]);
+  React.useEffect(() => {
+    setSettings(loadSettings(user?.id || ""));
+  }, [user?.id]);
 
   return (
-    <Layout>
-      <header className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl md:text-3xl font-semibold">
-          Персональный финансовый трекер
-        </h1>
+    <BrowserRouter>
+      <Layout>
+        <nav className="flex gap-4 mb-6 text-slate-200">
+          <Link to="/">{t(settings.lang, "nav_home")}</Link>
+          <Link to="/analytics">{t(settings.lang, "nav_analytics")}</Link>
+          <Link to="/profile">{t(settings.lang, "nav_profile")}</Link>
+          <Link to="/settings">{t(settings.lang, "nav_settings")}</Link>
+          {user && isAdmin(user) && <Link to="/admin">Admin</Link>}
+        </nav>
 
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 transition text-white rounded-lg"
-        >
-          + Добавить транзакцию
-        </button>
-      </header>
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
 
-      <main className="space-y-6">
-        <SummaryCards transactions={visibleTransactions} />
+          <Route
+            path="/"
+            element={
+              <Protected>
+                <HomePage transactions={transactions} setTransactions={setTransactions} />
+              </Protected>
+            }
+          />
 
-        <FiltersBar value={filters} onChange={setFilters} />
+          <Route
+            path="/analytics"
+            element={
+              <Protected>
+                <AnalyticsPage transactions={transactions} />
+              </Protected>
+            }
+          />
 
-        <TransactionsTable
-          transactions={visibleTransactions}
-          onDelete={requestDelete}
-        />
-      </main>
+          <Route
+            path="/profile"
+            element={
+              <Protected>
+                <ProfilePage />
+              </Protected>
+            }
+          />
 
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}>
-        <AddTransactionForm
-          onSubmit={addTransaction}
-          currentBalance={currentBalance}
-        />
-      </Modal>
+          <Route
+            path="/settings"
+            element={
+              <Protected>
+                <SettingsPage />
+              </Protected>
+            }
+          />
 
-      <ConfirmDialog
-        isOpen={deleteId !== null}
-        title="Удалить транзакцию?"
-        message="Это действие нельзя отменить. Удалить выбранную транзакцию?"
-        confirmText="Удалить"
-        cancelText="Отмена"
-        onConfirm={confirmDelete}
-        onCancel={cancelDelete}
-      />
-    </Layout>
+          <Route
+            path="/admin"
+            element={
+              <Protected>
+                {user && isAdmin(user) ? <AdminUsersPage /> : <Navigate to="/" replace />}
+              </Protected>
+            }
+          />
+        </Routes>
+      </Layout>
+    </BrowserRouter>
   );
 }

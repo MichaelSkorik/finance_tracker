@@ -3,7 +3,7 @@ import type { Transaction } from "../data";
 
 interface AddTransactionFormProps {
   onSubmit: (t: Transaction) => { ok: boolean; error?: string };
-  currentBalance: number;
+  currentBalance: number; // только для UI
 }
 
 const TODAY = new Date().toISOString().split("T")[0];
@@ -15,41 +15,27 @@ type FieldErrors = {
   common?: string;
 };
 
-export default function AddTransactionForm({
-  onSubmit,
-  currentBalance,
-}: AddTransactionFormProps) {
+export default function AddTransactionForm({ onSubmit, currentBalance }: AddTransactionFormProps) {
   const [type, setType] = React.useState<"income" | "expense">("income");
   const [amount, setAmount] = React.useState("");
   const [category, setCategory] = React.useState("");
   const [description, setDescription] = React.useState("");
   const [date, setDate] = React.useState(TODAY);
-
   const [errors, setErrors] = React.useState<FieldErrors>({});
 
   const numericAmount = Number(amount);
-
-  const isValid =
-    category.trim().length > 0 &&
-    !!date &&
-    !Number.isNaN(numericAmount) &&
-    numericAmount > 0 &&
-    date <= TODAY &&
-    (type !== "expense" || numericAmount <= currentBalance);
+  const normalizedAmount = Math.abs(numericAmount);
 
   function validate(): FieldErrors {
     const next: FieldErrors = {};
-
     if (!category.trim()) next.category = "Введите категорию";
 
     if (!date) next.date = "Выберите дату";
     else if (date > TODAY) next.date = "Дата не может быть позже сегодняшней";
 
-    if (amount.trim().length === 0) next.amount = "Введите сумму";
+    if (!amount.trim()) next.amount = "Введите сумму";
     else if (Number.isNaN(numericAmount)) next.amount = "Сумма должна быть числом";
-    else if (numericAmount <= 0) next.amount = "Сумма должна быть больше 0";
-    else if (type === "expense" && numericAmount > currentBalance)
-      next.amount = `Недостаточно средств. Доступно: ${currentBalance.toLocaleString("ru-RU")} ₼`;
+    else if (normalizedAmount <= 0) next.amount = "Значение должно быть больше 0";
 
     return next;
   }
@@ -57,9 +43,7 @@ export default function AddTransactionForm({
   function inputClass(hasError: boolean) {
     return (
       "w-full p-2 rounded bg-slate-700 text-white outline-none transition border " +
-      (hasError
-        ? "border-rose-500/70 ring-2 ring-rose-500/25"
-        : "border-transparent focus:border-slate-500/60")
+      (hasError ? "border-rose-500/70 ring-2 ring-rose-500/25" : "border-transparent focus:border-slate-500/60")
     );
   }
 
@@ -72,19 +56,18 @@ export default function AddTransactionForm({
       return;
     }
 
-    const newTransaction: Transaction = {
+    const tx: Transaction = {
       id: Date.now(),
       type,
-      amount: numericAmount,
+      amount: normalizedAmount,
       category: category.trim(),
       description: description.trim(),
       date,
     };
 
-    const result = onSubmit(newTransaction);
-
+    const result = onSubmit(tx);
     if (!result.ok) {
-      setErrors({ common: result.error || "Ошибка" });
+      setErrors({ common: result.error || "Ошибка добавления транзакции" });
       return;
     }
 
@@ -97,12 +80,11 @@ export default function AddTransactionForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+    <form onSubmit={handleSubmit} className="space-y-4">
       <h2 className="text-xl font-semibold">Новая транзакция</h2>
 
       <div className="text-sm text-slate-300">
-        Доступно:{" "}
-        <span className="font-semibold">{currentBalance.toLocaleString("ru-RU")} ₼</span>
+        Текущий баланс: <span className="font-semibold">{currentBalance.toLocaleString("ru-RU")} ₼</span>
       </div>
 
       {errors.common && (
@@ -113,26 +95,12 @@ export default function AddTransactionForm({
 
       <div className="flex gap-4">
         <label className="flex items-center gap-2">
-          <input
-            type="radio"
-            checked={type === "income"}
-            onChange={() => {
-              setType("income");
-              setErrors({});
-            }}
-          />
+          <input type="radio" checked={type === "income"} onChange={() => setType("income")} />
           Доход
         </label>
 
         <label className="flex items-center gap-2">
-          <input
-            type="radio"
-            checked={type === "expense"}
-            onChange={() => {
-              setType("expense");
-              setErrors({});
-            }}
-          />
+          <input type="radio" checked={type === "expense"} onChange={() => setType("expense")} />
           Расход
         </label>
       </div>
@@ -140,68 +108,34 @@ export default function AddTransactionForm({
       <div className="space-y-1">
         <input
           type="number"
+          min="0.01"
           step="0.01"
           placeholder="Сумма"
           value={amount}
-          onInvalid={(e) => e.preventDefault()}
-          onChange={(e) => {
-            setAmount(e.target.value);
-            setErrors((p) => ({ ...p, amount: undefined, common: undefined }));
-          }}
+          onChange={(e) => setAmount(e.target.value)}
           className={inputClass(!!errors.amount)}
         />
         {errors.amount && <p className="text-xs text-rose-300">{errors.amount}</p>}
       </div>
 
       <div className="space-y-1">
-        <input
-          type="date"
-          value={date}
-          max={TODAY}
-          onInvalid={(e) => e.preventDefault()}
-          onChange={(e) => {
-            setDate(e.target.value);
-            setErrors((p) => ({ ...p, date: undefined, common: undefined }));
-          }}
-          className={inputClass(!!errors.date)}
-        />
+        <input type="date" value={date} max={TODAY} onChange={(e) => setDate(e.target.value)} className={inputClass(!!errors.date)} />
         {errors.date && <p className="text-xs text-rose-300">{errors.date}</p>}
       </div>
 
       <div className="space-y-1">
-        <input
-          type="text"
-          placeholder="Категория"
-          value={category}
-          onInvalid={(e) => e.preventDefault()}
-          onChange={(e) => {
-            setCategory(e.target.value);
-            setErrors((p) => ({ ...p, category: undefined, common: undefined }));
-          }}
-          className={inputClass(!!errors.category)}
-        />
+        <input type="text" placeholder="Категория" value={category} onChange={(e) => setCategory(e.target.value)} className={inputClass(!!errors.category)} />
         {errors.category && <p className="text-xs text-rose-300">{errors.category}</p>}
       </div>
 
       <textarea
         placeholder="Описание (необязательно)"
         value={description}
-        onChange={(e) => {
-          setDescription(e.target.value);
-          setErrors((p) => ({ ...p, common: undefined }));
-        }}
+        onChange={(e) => setDescription(e.target.value)}
         className="w-full p-2 rounded bg-slate-700 text-white outline-none transition border border-transparent focus:border-slate-500/60"
       />
 
-      <button
-        type="submit"
-        aria-disabled={!isValid}
-        className={`w-full py-2 rounded-lg font-medium transition ${
-          isValid
-            ? "bg-emerald-600 hover:bg-emerald-500 text-white"
-            : "bg-slate-600 text-slate-300 cursor-not-allowed"
-        }`}
-      >
+      <button type="submit" className="w-full py-2 rounded-lg font-medium transition bg-emerald-600 hover:bg-emerald-500 text-white">
         Добавить
       </button>
     </form>

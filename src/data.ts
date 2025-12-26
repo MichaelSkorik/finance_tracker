@@ -1,25 +1,28 @@
-export type TransactionType = "income" | "expense";
+export type TxType = "income" | "expense";
 
-export interface Transaction {
+export type Transaction = {
   id: number;
-  type: TransactionType;
-  amount: number;
-  date: string;
+  type: TxType;
+  amount: number; // ALWAYS positive
   category: string;
   description?: string;
+  date: string; // YYYY-MM-DD
+};
+
+export function normalizeTransaction(t: Transaction): Transaction {
+  return { ...t, amount: Math.abs(Number(t.amount) || 0) };
 }
 
-export const mockTransactions: Transaction[] = [
-  { id: 1, type: "income", amount: 2500, date: "2025-11-10", category: "Зарплата", description: "Основная работа" },
-  { id: 2, type: "expense", amount: 100, date: "2025-11-11", category: "Еда", description: "Продукты" },
-  { id: 3, type: "expense", amount: 50, date: "2025-11-12", category: "Транспорт", description: "Такси" },
-  { id: 4, type: "income", amount: 300, date: "2025-11-13", category: "Подработка", description: "Уборка" },
-];
+export function signedAmount(t: Transaction): number {
+  const a = Math.abs(Number(t.amount) || 0);
+  return t.type === "income" ? a : -a;
+}
 
-export type SortField = "date" | "amount";
-export type SortOrder = "asc" | "desc";
-
-export interface SortOptions {
-  field: SortField;
-  order: SortOrder;
+export function calcBalance(transactions: Transaction[]): number {
+  let b = 0;
+  for (const raw of transactions) {
+    const t = normalizeTransaction(raw);
+    b += signedAmount(t);
+  }
+  return b;
 }
