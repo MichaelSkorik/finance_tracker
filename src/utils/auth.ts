@@ -121,6 +121,7 @@ export async function login(email: string, password: string): Promise<AuthWithUs
 
 export function isAdmin(me: User): boolean {
   const u = getCurrentUser();
+  console.log(me);
   return !!u && u.role === "admin";
 }
 
@@ -172,3 +173,4 @@ export function setRole(email: string, role: "user" | "admin") {
   u.role = role;
   localStorage.setItem("users", JSON.stringify(users));
 }
+

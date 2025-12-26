@@ -18,6 +18,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
 
 export function loadSettings(id: string): AppSettings {
   try {
+    console.log(id);
     const raw = localStorage.getItem(KEY);
     if (!raw) return DEFAULT_SETTINGS;
     const p = JSON.parse(raw) as Partial<AppSettings>;
