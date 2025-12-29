@@ -3,10 +3,10 @@ export type TxType = "income" | "expense";
 export type Transaction = {
   id: number;
   type: TxType;
-  amount: number; // ALWAYS positive
+  amount: number; 
   category: string;
   description?: string;
-  date: string; // YYYY-MM-DD
+  date: string; 
 };
 
 export function normalizeTransaction(t: Transaction): Transaction {

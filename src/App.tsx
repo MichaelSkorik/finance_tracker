@@ -1,62 +1,35 @@
 import React from "react";
 import { BrowserRouter, Routes, Route, Navigate, Link } from "react-router-dom";
 
-import Layout from "./components/Layout";
-import HomePage from "./pages/HomePage";
-import AnalyticsPage from "./pages/AnalyticsPage";
+import Layout from "./Layout";
 import LoginPage from "./pages/LoginPage";
 import ProfilePage from "./pages/ProfilePage";
 import SettingsPage from "./pages/SettingsPage";
 import AdminUsersPage from "./pages/AdminUsersPage";
+import HomePage from "./pages/HomePage";
 
-import { getCurrentUser, isAdmin } from "./utils/auth";
-import { loadTransactions, saveTransactions } from "./utils/storage";
-import { applyTheme, loadSettings, t } from "./utils/settings";
-import type { Transaction } from "./data";
+import { getCurrentUser } from "./utils/auth";
 
 function Protected({ children }: { children: React.ReactNode }) {
-  return getCurrentUser() ? <>{children}</> : <Navigate to="/login" replace />;
+  const [ok, setOk] = React.useState<boolean | null>(null);
+
+  React.useEffect(() => {
+    getCurrentUser().then((u) => setOk(!!u));
+  }, []);
+
+  if (ok === null) return null;
+  return ok ? <>{children}</> : <Navigate to="/login" replace />;
 }
 
 export default function App() {
-  const user = getCurrentUser();
-
-  const [settings, setSettings] = React.useState(() => loadSettings(user?.id || ""));
-
-  React.useEffect(() => {
-    applyTheme(settings.theme);
-  }, [settings.theme]);
-
-  const [transactions, setTransactions] = React.useState<Transaction[]>(() => {
-    if (!user) return [];
-    return loadTransactions(user.id);
-  });
-
-  React.useEffect(() => {
-    const u = getCurrentUser();
-    if (!u) return;
-    saveTransactions(u.id, transactions);
-  }, [transactions]);
-
-  React.useEffect(() => {
-    const u = getCurrentUser();
-    if (!u) return;
-    setTransactions(loadTransactions(u.id));
-  }, [user?.id]);
-
-  React.useEffect(() => {
-    setSettings(loadSettings(user?.id || ""));
-  }, [user?.id]);
-
   return (
     <BrowserRouter>
       <Layout>
-        <nav className="flex gap-4 mb-6 text-slate-200">
-          <Link to="/">{t(settings.lang, "nav_home")}</Link>
-          <Link to="/analytics">{t(settings.lang, "nav_analytics")}</Link>
-          <Link to="/profile">{t(settings.lang, "nav_profile")}</Link>
-          <Link to="/settings">{t(settings.lang, "nav_settings")}</Link>
-          {user && isAdmin(user) && <Link to="/admin">Admin</Link>}
+        <nav className="flex gap-4 mb-6">
+          <Link to="/">Главная</Link>
+          <Link to="/profile">Профиль</Link>
+          <Link to="/settings">Настройки</Link>
+          <Link to="/admin/users">Админ</Link>
         </nav>
 
         <Routes>
@@ -66,16 +39,7 @@ export default function App() {
             path="/"
             element={
               <Protected>
-                <HomePage transactions={transactions} setTransactions={setTransactions} />
-              </Protected>
-            }
-          />
-
-          <Route
-            path="/analytics"
-            element={
-              <Protected>
-                <AnalyticsPage transactions={transactions} />
+                <HomePage />
               </Protected>
             }
           />
@@ -99,13 +63,15 @@ export default function App() {
           />
 
           <Route
-            path="/admin"
+            path="/admin/users"
             element={
               <Protected>
-                {user && isAdmin(user) ? <AdminUsersPage /> : <Navigate to="/" replace />}
+                <AdminUsersPage />
               </Protected>
             }
           />
+
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Layout>
     </BrowserRouter>

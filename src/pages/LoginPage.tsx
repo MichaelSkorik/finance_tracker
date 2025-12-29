@@ -1,6 +1,6 @@
 import React from "react";
-import { useNavigate } from "react-router-dom";
 import { login, register } from "../utils/auth";
+import { useNavigate } from "react-router-dom";
 
 export default function LoginPage() {
   const nav = useNavigate();
@@ -11,11 +11,12 @@ export default function LoginPage() {
 
   async function submit() {
     setError("");
+    const { error } = isRegister
+      ? await register(email, password)
+      : await login(email, password);
 
-    const res = await (isRegister ? register(email, password) : login(email, password));
-
-    if (!res.ok) {
-      setError(res.error || "Ошибка");
+    if (error) {
+      setError(error.message);
       return;
     }
 
@@ -32,7 +33,7 @@ export default function LoginPage() {
         value={email}
         onChange={(e) => setEmail(e.target.value)}
         placeholder="Email"
-        className="w-full p-2 rounded bg-slate-700 text-white"
+        className="w-full p-2 rounded bg-slate-700"
       />
 
       <input
@@ -40,34 +41,24 @@ export default function LoginPage() {
         value={password}
         onChange={(e) => setPassword(e.target.value)}
         placeholder="Пароль"
-        className="w-full p-2 rounded bg-slate-700 text-white"
+        className="w-full p-2 rounded bg-slate-700"
       />
 
-      {error && (
-        <div className="rounded-lg bg-rose-500/15 border border-rose-500/40 px-3 py-2 text-rose-200 text-sm">
-          {error}
-        </div>
-      )}
+      {error && <div className="text-rose-400 text-sm">{error}</div>}
 
       <button
         onClick={submit}
-        className="w-full py-2 bg-emerald-600 hover:bg-emerald-500 transition text-white rounded-lg"
+        className="w-full py-2 bg-emerald-600 rounded"
       >
-        {isRegister ? "Зарегистрироваться" : "Войти"}
+        {isRegister ? "Создать аккаунт" : "Войти"}
       </button>
 
       <button
         onClick={() => setIsRegister((v) => !v)}
-        className="text-sm text-slate-300 underline"
+        className="text-sm text-slate-400 underline"
       >
-        {isRegister ? "Уже есть аккаунт?" : "Создать аккаунт"}
+        {isRegister ? "Уже есть аккаунт?" : "Регистрация"}
       </button>
-
-      {isRegister && (
-        <div className="text-xs text-slate-400">
-          Пароль: минимум 8 символов, 1 заглавная, 1 строчная, 1 цифра
-        </div>
-      )}
     </div>
   );
 }
