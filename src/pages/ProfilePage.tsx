@@ -1,5 +1,5 @@
 import React from "react";
-import { getCurrentUser, logout, updatePassword } from "../utils/auth";
+import { logout, updatePassword } from "../utils/auth";
 import { useNavigate } from "react-router-dom";
 
 export default function ProfilePage() {
