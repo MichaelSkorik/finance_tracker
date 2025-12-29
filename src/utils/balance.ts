@@ -1,18 +1,23 @@
-import type { Transaction } from "../data";
+export type Transaction = {
+  id: string;
+  user_id: string;
+  type: "income" | "expense";
+  category: string;
+  description?: string;
+  amount: number;
+  created_at: string;
+};
 
-export function calcBalance(transactions: Transaction[]) {
-  return transactions.reduce(
-    (sum, t) => sum + (t.type === "income" ? t.amount : -t.amount),
-    0
-  );
+export function calcIncome(tx: Transaction[]) {
+  return tx.filter(t => t.type === "income")
+    .reduce((s, t) => s + t.amount, 0);
 }
 
-export function calculateBalanceTimeline(transactions: Transaction[]) {
-  let balance = 0;
-  return [...transactions]
-    .sort((a, b) => a.date.localeCompare(b.date))
-    .map((t) => {
-      balance += t.type === "income" ? t.amount : -t.amount;
-      return { date: t.date, balance };
-    });
+export function calcExpense(tx: Transaction[]) {
+  return tx.filter(t => t.type === "expense")
+    .reduce((s, t) => s + t.amount, 0);
+}
+
+export function calcBalance(tx: Transaction[]) {
+  return calcIncome(tx) - calcExpense(tx);
 }
